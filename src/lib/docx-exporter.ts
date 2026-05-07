@@ -1,13 +1,6 @@
-import express from "express";
+import { Document, Packer, Paragraph, TextRun, AlignmentType, XmlComponent, XmlAttributeComponent } from "docx";
+import { convertLatex2Math, mathJaxReady } from "@hungknguyen/docx-math-converter";
 import { marked } from "marked";
-import { createServer as createViteServer } from "vite";
-import path from "path";
-import { createRequire } from "module";
-const customRequire = createRequire(import.meta.url);
-const { Document, Packer, Paragraph, TextRun, AlignmentType, XmlComponent, XmlAttributeComponent } = customRequire("docx");
-const { convertLatex2Math, mathJaxReady } = customRequire("@hungknguyen/docx-math-converter");
-
-const PORT = 3000;
 
 class RawXml extends XmlComponent {
   constructor(key: string, root: any[]) {
@@ -16,7 +9,7 @@ class RawXml extends XmlComponent {
   }
 }
 
-class RawAttr extends XmlAttributeComponent {
+class RawAttr extends XmlAttributeComponent<any> {
   constructor(xmlKeys: any, root: any) {
     super(root);
     (this as any).xmlKeys = xmlKeys;
@@ -76,7 +69,7 @@ const blockMathExtension = {
 
 marked.use({ extensions: [inlineMathExtension, blockMathExtension] });
 
-async function createDocxBuffer(text: string, direction: string, colors: any) {
+export async function createDocxBuffer(text: string, direction: string, colors: any) {
   const isRtl = direction === 'rtl';
 
   function processTokens(tokensList: any[]) {
@@ -168,64 +161,5 @@ async function createDocxBuffer(text: string, direction: string, colors: any) {
     sections: [{ properties: {}, children }]
   });
 
-  return await Packer.toBuffer(doc);
+  return await Packer.toBlob(doc);
 }
-
-async function startServer() {
-  await mathJaxReady(); // Wait for MathJax to initialize once
-  const app = express();
-
-  app.use(express.json({ limit: "50mb" }));
-
-  // Middleware to add CORS for external host environments
-  app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    next();
-  });
-
-  app.post("/api/convert", async (req, res) => {
-    try {
-      const { 
-        text, 
-        direction = "ltr", 
-        titleColor = "#000000", 
-        subtitleColor = "#000000", 
-        bodyColor = "#000000" 
-      } = req.body;
-
-      console.log("Converting using docx + mathematical elements in memory...");
-      
-      // Generate the Document Buffer in memory!
-      const buffer = await createDocxBuffer(text, direction, { titleColor, subtitleColor, bodyColor });
-
-      // Return the buffer as a stream
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-      res.setHeader("Content-Disposition", `attachment; filename="document.docx"`);
-      res.send(buffer);
-    } catch (e: any) {
-      console.error(e);
-      res.status(500).json({ error: e.message || "Failed to convert" });
-    }
-  });
-
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
-
-startServer();

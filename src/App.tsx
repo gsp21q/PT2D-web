@@ -31,23 +31,17 @@ $$
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const response = await fetch('/api/convert', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          direction,
-          titleColor,
-          subtitleColor,
-          bodyColor,
-        }),
+      // First ensure MathJax is ready
+      const { mathJaxReady } = await import('@hungknguyen/docx-math-converter');
+      await mathJaxReady();
+
+      const { createDocxBuffer } = await import('./lib/docx-exporter');
+      const blob = await createDocxBuffer(text, direction, {
+        titleColor,
+        subtitleColor,
+        bodyColor,
       });
 
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
