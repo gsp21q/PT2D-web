@@ -1,0 +1,6 @@
+{
+  "name": "PT2D",
+  "description": "Convert Markdown and LaTeX equations to Word Documents (.docx) with styling and RTL support via Pandoc WASM.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
